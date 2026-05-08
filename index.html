@@ -161,20 +161,27 @@ let highlightedIdx = null;
 
 // ── Map init ──
 const map = L.map('map', {
-  zoomSnap: 1,
+  zoomSnap: 0,            // fractional zoom so pinch is continuous, not stepping
   zoomAnimation: true,
-  scrollWheelZoom: true,  // use Leaflet's smooth zoom machinery
+  scrollWheelZoom: false, // custom handler below
 }).setView([42.3876, -71.0995], 14);
 
-// Intercept scroll events: only let pinch (ctrlKey) reach Leaflet's zoom handler.
-// Regular two-finger scroll is left alone so the page/list can scroll naturally.
+// Smooth pinch zoom: accumulate delta each frame via rAF so the browser
+// never skips levels, giving a continuous glide instead of discrete jumps.
+let _zoomTarget = map.getZoom();
+let _zoomRafId  = null;
 map.getContainer().addEventListener('wheel', (e) => {
-  if (!e.ctrlKey) {
-    map.scrollWheelZoom.disable();
-  } else {
-    map.scrollWheelZoom.enable();
+  if (!e.ctrlKey) return; // let regular scroll pass through to the page
+  e.preventDefault();
+  const delta = -e.deltaY * (e.deltaMode === 0 ? 0.005 : 0.15);
+  _zoomTarget = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), _zoomTarget + delta));
+  if (!_zoomRafId) {
+    _zoomRafId = requestAnimationFrame(() => {
+      map.setZoom(_zoomTarget, { animate: false });
+      _zoomRafId = null;
+    });
   }
-}, { passive: true, capture: true });
+}, { passive: false });
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
