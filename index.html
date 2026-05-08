@@ -340,9 +340,9 @@ function applyFilters() {
 
     // Marker
     const marker = L.marker([venue.lat, venue.lng], { icon: makeIcon(num, color) });
-    const popupHtml = buildPopup(venue, matchingShows, num);
+    const popupHtml = buildPopup(venue, matchingShows, num, color);
     marker.bindPopup(popupHtml, { maxWidth: 280 });
-    marker.bindTooltip(buildTooltip(venue, matchingShows), {
+    marker.bindTooltip(buildTooltip(venue, matchingShows, num, color), {
       direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
     });
     marker.on('click', () => highlightCard(idx));
@@ -369,8 +369,8 @@ function applyFilters() {
   document.getElementById('print-list-heading').style.display = count > 0 ? 'block' : 'none';
 }
 
-function buildTooltip(venue, shows) {
-  let html = `<div class="popup-content"><div class="popup-addr">${venue.address}<br><small style="color:#888;font-weight:400">Somerville, MA</small></div>`;
+function buildTooltip(venue, shows, num, color) {
+  let html = `<div class="popup-content"><div class="popup-addr"><span class="venue-num" style="background:${color}">${num}</span>${venue.address}<br><small style="color:#888;font-weight:400;margin-left:26px;display:block">Somerville, MA</small></div>`;
   shows.forEach(s => {
     html += `<div class="popup-show">
       <div class="popup-show-name">${s.name}</div>
@@ -382,8 +382,8 @@ function buildTooltip(venue, shows) {
   return html;
 }
 
-function buildPopup(venue, shows, num) {
-  let html = `<div class="popup-content"><div class="popup-addr">${num}. ${venue.address}<br><small style="color:#888;font-weight:400">Somerville, MA</small></div>`;
+function buildPopup(venue, shows, num, color) {
+  let html = `<div class="popup-content"><div class="popup-addr"><span class="venue-num" style="background:${color}">${num}</span>${venue.address}<br><small style="color:#888;font-weight:400;margin-left:26px;display:block">Somerville, MA</small></div>`;
   shows.forEach(s => {
     html += `<div class="popup-show">
       <div class="popup-show-name">${s.name}</div>
