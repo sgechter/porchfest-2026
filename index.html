@@ -112,15 +112,15 @@
       <div class="filter-label">Time Window</div>
       <div id="time-presets">
         <button class="preset-btn" onclick="setPreset(720,840)">Noon–2pm</button>
-        <button class="preset-btn active" id="preset-2-4" onclick="setPreset(840,960)">2pm–4pm</button>
+        <button class="preset-btn" onclick="setPreset(840,960)">2pm–4pm</button>
         <button class="preset-btn" onclick="setPreset(960,1080)">4pm–6pm</button>
-        <button class="preset-btn" onclick="setPreset(720,1080)">All times</button>
+        <button class="preset-btn active" onclick="setPreset(720,1080)">All times</button>
       </div>
       <div id="time-range-row">
         <span id="time-start-label">2:00 pm</span>
-        <input type="range" id="time-start" min="720" max="1080" value="840" step="15" oninput="onSlider()" aria-label="Start time" aria-valuetext="2:00 pm">
+        <input type="range" id="time-start" min="720" max="1080" value="720" step="15" oninput="onSlider()" aria-label="Start time" aria-valuetext="12:00 pm">
         <span>to</span>
-        <input type="range" id="time-end" min="720" max="1080" value="960" step="15" oninput="onSlider()" aria-label="End time" aria-valuetext="4:00 pm">
+        <input type="range" id="time-end" min="720" max="1080" value="1080" step="15" oninput="onSlider()" aria-label="End time" aria-valuetext="6:00 pm">
         <span id="time-end-label">4:00 pm</span>
       </div>
     </div>
@@ -152,8 +152,8 @@ const VENUES = [{"address": "71 Simpson Avenue", "lat": 42.40082023829, "lng": -
 const ALL_GENRES = ["Americana", "Bluegrass", "Blues", "Classical", "Country", "Electronic", "Folk", "Funk", "Hip hop", "Indie", "Jazz", "Latin", "Metal", "Pop", "Punk", "R&B", "Rock", "Singer/songwriter", "Soul", "World"];
 
 // ── State ──
-let timeStart = 840;  // 2pm in minutes
-let timeEnd   = 960;  // 4pm
+let timeStart = 720;  // noon
+let timeEnd   = 1080; // 6pm
 let selectedGenres = new Set(ALL_GENRES);
 let activeMarkers = [];
 let highlightedIdx = null;
