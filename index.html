@@ -85,9 +85,12 @@
     #main { display: block; overflow: visible; }
     #map { height: 5in !important; page-break-after: avoid; border: 1pt solid #ccc; }
     #list-panel { width: 100%; border: none; overflow: visible; }
-    .venue-card { page-break-inside: avoid; border-bottom: 0.5pt solid #ccc; padding: 4pt 0; }
+    #venue-list { column-count: 3; column-gap: 16pt; column-fill: balance; }
+    .venue-card { break-inside: avoid; border-bottom: 0.5pt solid #ccc; padding: 3pt 0; font-size: 9pt; }
     .venue-card:hover { background: none; }
-    .venue-num { background: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .venue-addr { font-size: 9pt; }
+    .show-item { font-size: 8pt; }
+    .venue-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     h2#print-list-heading { margin: 8pt 0 4pt; font-size: 12pt; border-top: 1pt solid black; padding-top: 6pt; }
   }
 </style>
