@@ -68,9 +68,6 @@
   /* Hover tooltip */
   .pf-tooltip { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; box-shadow: 0 3px 12px rgba(0,0,0,0.15); color: #222; font-size: 13px; line-height: 1.5; max-width: 300px; white-space: normal; }
   .pf-tooltip::before { display: none; }
-  .tt-addr { font-weight: 700; font-size: 12px; color: #555; margin-bottom: 4px; }
-  .tt-name { font-weight: 600; color: #111; }
-  .tt-genre { color: #2c5f2e; font-style: italic; }
 
   /* Focus styles for keyboard navigation */
   :focus-visible { outline: 3px solid #2c5f2e; outline-offset: 2px; border-radius: 2px; }
@@ -373,11 +370,15 @@ function applyFilters() {
 }
 
 function buildTooltip(venue, shows) {
-  const lines = shows.map(s => {
-    const genres = s.genres.join(', ') || s.genre;
-    return `<span class="tt-name">${s.name}</span>${genres ? `<span class="tt-genre"> · ${genres}</span>` : ''}`;
-  }).join('<br>');
-  return `<div class="tt-addr">${venue.address}</div>${lines}`;
+  let html = `<div class="popup-addr">${venue.address}<br><small style="color:#888;font-weight:400">Somerville, MA</small></div>`;
+  shows.forEach(s => {
+    html += `<div class="popup-show">
+      <div class="popup-show-name">${s.name}</div>
+      <div class="popup-show-meta">${s.time}</div>
+      <div class="popup-show-meta">${s.genres.join(', ') || s.genre}</div>
+    </div>`;
+  });
+  return html;
 }
 
 function buildPopup(venue, shows, num) {
