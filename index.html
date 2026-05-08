@@ -65,6 +65,14 @@
   .popup-show-name { font-weight: 600; font-size: 13px; }
   .popup-show-meta { font-size: 11px; color: #595959; } /* passes WCAG AA */
 
+  /* Hover tooltip */
+  .pf-tooltip { background: rgba(20,20,20,0.92); border: none; border-radius: 6px; padding: 6px 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.35); color: white; font-size: 12px; line-height: 1.5; max-width: 240px; }
+  .pf-tooltip::before { display: none; }
+  .leaflet-tooltip.pf-tooltip { white-space: normal; }
+  .tt-addr { font-weight: 700; font-size: 11px; opacity: 0.75; margin-bottom: 2px; }
+  .tt-name { font-weight: 600; }
+  .tt-genre { opacity: 0.8; font-style: italic; }
+
   /* Focus styles for keyboard navigation */
   :focus-visible { outline: 3px solid #2c5f2e; outline-offset: 2px; border-radius: 2px; }
   .preset-btn:focus-visible, .small-btn:focus-visible { border-radius: 14px; }
@@ -152,10 +160,19 @@ let highlightedIdx = null;
 
 // ── Map init ──
 const map = L.map('map', {
-  zoomSnap: 0.5,          // allow half-levels for smoother zoom feel
-  wheelDebounceTime: 40,  // respond faster to scroll wheel
+  zoomSnap: 0.25,         // finer snap for smoother pinch zoom
   zoomAnimation: true,
+  scrollWheelZoom: false, // disable scroll-to-zoom; use pinch (ctrl+wheel) only
 }).setView([42.3876, -71.0995], 14);
+
+// Standard Mac trackpad: pinch fires as wheel+ctrlKey in Chrome/Firefox
+map.getContainer().addEventListener('wheel', (e) => {
+  if (e.ctrlKey) {
+    e.preventDefault();
+    const delta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.002);
+    map.setZoom(map.getZoom() + delta, { animate: false });
+  }
+}, { passive: false });
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
@@ -320,6 +337,9 @@ function applyFilters() {
     const marker = L.marker([venue.lat, venue.lng], { icon: makeIcon(num, color) });
     const popupHtml = buildPopup(venue, matchingShows, num);
     marker.bindPopup(popupHtml, { maxWidth: 280 });
+    marker.bindTooltip(buildTooltip(venue, matchingShows), {
+      direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
+    });
     marker.on('click', () => highlightCard(idx));
     markerLayer.addLayer(marker);
     activeMarkers.push(marker);
@@ -342,6 +362,14 @@ function applyFilters() {
     `Showing ${count} venue${count !== 1 ? 's' : ''} · ${minsToLabel(timeStart)} – ${minsToLabel(timeEnd)}`;
   
   document.getElementById('print-list-heading').style.display = count > 0 ? 'block' : 'none';
+}
+
+function buildTooltip(venue, shows) {
+  const lines = shows.map(s => {
+    const genres = s.genres.join(', ') || s.genre;
+    return `<span class="tt-name">${s.name}</span>${genres ? `<span class="tt-genre"> · ${genres}</span>` : ''}`;
+  }).join('<br>');
+  return `<div class="tt-addr">${venue.address}</div>${lines}`;
 }
 
 function buildPopup(venue, shows, num) {
