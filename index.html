@@ -161,19 +161,20 @@ let highlightedIdx = null;
 
 // ── Map init ──
 const map = L.map('map', {
-  zoomSnap: 0.25,         // finer snap for smoother pinch zoom
+  zoomSnap: 1,
   zoomAnimation: true,
-  scrollWheelZoom: false, // disable scroll-to-zoom; use pinch (ctrl+wheel) only
+  scrollWheelZoom: true,  // use Leaflet's smooth zoom machinery
 }).setView([42.3876, -71.0995], 14);
 
-// Standard Mac trackpad: pinch fires as wheel+ctrlKey in Chrome/Firefox
+// Intercept scroll events: only let pinch (ctrlKey) reach Leaflet's zoom handler.
+// Regular two-finger scroll is left alone so the page/list can scroll naturally.
 map.getContainer().addEventListener('wheel', (e) => {
-  if (e.ctrlKey) {
-    e.preventDefault();
-    const delta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.002);
-    map.setZoom(map.getZoom() + delta, { animate: false });
+  if (!e.ctrlKey) {
+    map.scrollWheelZoom.disable();
+  } else {
+    map.scrollWheelZoom.enable();
   }
-}, { passive: false });
+}, { passive: true, capture: true });
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',

@@ -1,0 +1,27 @@
+{
+  "name": "porchfest_2026",
+  "version": "1.0.0",
+  "description": "",
+  "main": "playwright.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sgechter/porchfest-2026.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/sgechter/porchfest-2026/issues"
+  },
+  "homepage": "https://github.com/sgechter/porchfest-2026#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}
