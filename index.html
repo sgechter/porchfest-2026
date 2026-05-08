@@ -56,14 +56,19 @@
   .venue-addr { font-weight: 600; font-size: 13px; }
   .show-item { margin: 4px 0 0 26px; font-size: 12px; }
   .show-name { font-weight: 500; }
-  .show-meta { color: #777; font-size: 11px; }
-  
+  .show-meta { color: #595959; font-size: 11px; } /* #595959 on white = 7.0:1, passes WCAG AA */
+
   /* Popup */
   .popup-content { max-width: 260px; }
   .popup-addr { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
   .popup-show { margin: 4px 0; padding: 4px 6px; background: #f5f5f0; border-radius: 4px; }
   .popup-show-name { font-weight: 600; font-size: 13px; }
-  .popup-show-meta { font-size: 11px; color: #555; }
+  .popup-show-meta { font-size: 11px; color: #595959; } /* passes WCAG AA */
+
+  /* Focus styles for keyboard navigation */
+  :focus-visible { outline: 3px solid #2c5f2e; outline-offset: 2px; border-radius: 2px; }
+  .preset-btn:focus-visible, .small-btn:focus-visible { border-radius: 14px; }
+  .genre-chip:focus-within { outline: 3px solid #2c5f2e; outline-offset: 2px; border-radius: 14px; }
 
   /* ── PRINT STYLES ── */
   @media print {
@@ -105,9 +110,9 @@
       </div>
       <div id="time-range-row">
         <span id="time-start-label">2:00 pm</span>
-        <input type="range" id="time-start" min="720" max="1080" value="840" step="15" oninput="onSlider()">
+        <input type="range" id="time-start" min="720" max="1080" value="840" step="15" oninput="onSlider()" aria-label="Start time" aria-valuetext="2:00 pm">
         <span>to</span>
-        <input type="range" id="time-end" min="720" max="1080" value="960" step="15" oninput="onSlider()">
+        <input type="range" id="time-end" min="720" max="1080" value="960" step="15" oninput="onSlider()" aria-label="End time" aria-valuetext="4:00 pm">
         <span id="time-end-label">4:00 pm</span>
       </div>
     </div>
@@ -126,7 +131,7 @@
   <div id="result-bar">Loading…</div>
 
   <div id="main">
-    <div id="map"></div>
+    <div id="map" role="application" aria-label="Interactive map of PorchFest venues"></div>
     <div id="list-panel">
       <h2 id="print-list-heading" style="display:none;padding:8px 14px;font-size:14px;">Venue List</h2>
       <div id="venue-list"></div>
@@ -146,10 +151,16 @@ let activeMarkers = [];
 let highlightedIdx = null;
 
 // ── Map init ──
-const map = L.map('map').setView([42.3876, -71.0995], 14);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors',
-  maxZoom: 19
+const map = L.map('map', {
+  zoomSnap: 0.5,          // allow half-levels for smoother zoom feel
+  wheelDebounceTime: 40,  // respond faster to scroll wheel
+  zoomAnimation: true,
+}).setView([42.3876, -71.0995], 14);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19,
 }).addTo(map);
 
 function minsToLabel(m) {
@@ -223,8 +234,12 @@ function onSlider() {
 }
 
 function updateTimeLabels() {
-  document.getElementById('time-start-label').textContent = minsToLabel(timeStart);
-  document.getElementById('time-end-label').textContent   = minsToLabel(timeEnd);
+  const startLabel = minsToLabel(timeStart);
+  const endLabel   = minsToLabel(timeEnd);
+  document.getElementById('time-start-label').textContent = startLabel;
+  document.getElementById('time-end-label').textContent   = endLabel;
+  document.getElementById('time-start').setAttribute('aria-valuetext', startLabel);
+  document.getElementById('time-end').setAttribute('aria-valuetext', endLabel);
 }
 
 // ── Filter logic ──
@@ -245,11 +260,11 @@ function showMatches(show) {
 }
 
 // Custom numbered icon
-// Zone colors matching the official PorchFest map
+// Zone colors matching the official PorchFest map (all pass WCAG AA 4.5:1 with white text)
 const ZONE_COLORS = {
-  blue:   '#4a86c8',  // 12pm–2pm
-  green:  '#3aaa5c',  // 2pm–4pm
-  orange: '#e07b2a',  // 4pm–6pm
+  blue:   '#2563a5',  // 12pm–2pm  contrast ~6.2:1
+  green:  '#1a7a3d',  // 2pm–4pm   contrast ~5.2:1
+  orange: '#b85800',  // 4pm–6pm   contrast ~4.7:1
 };
 
 function zoneColor(start_min) {
