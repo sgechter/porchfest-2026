@@ -126,13 +126,14 @@
     </div>
 
     <div class="filter-group">
-      <div class="filter-label">Genre &nbsp;<span style="font-weight:400;text-transform:none;">(show overlaps with selected)</span></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="filter-label">Genre &nbsp;<span style="font-weight:400;text-transform:none;">(show overlaps with selected)</span></div>
+        <div class="filter-actions">
+          <button class="small-btn" onclick="selectAllGenres()">All genres</button>
+          <button class="small-btn" onclick="clearGenres()">Clear genres</button>
+        </div>
+      </div>
       <div id="genre-grid"></div>
-    </div>
-
-    <div class="filter-group filter-actions">
-      <button class="small-btn" onclick="selectAllGenres()">All genres</button>
-      <button class="small-btn" onclick="clearGenres()">Clear genres</button>
     </div>
   </div>
 
