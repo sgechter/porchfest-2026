@@ -66,7 +66,7 @@
   .popup-show-meta { font-size: 11px; color: #595959; } /* passes WCAG AA */
 
   /* Hover tooltip */
-  .pf-tooltip { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; box-shadow: 0 3px 12px rgba(0,0,0,0.15); color: #222; font-size: 13px; line-height: 1.5; max-width: 300px; white-space: normal; }
+  .pf-tooltip { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; box-shadow: 0 3px 12px rgba(0,0,0,0.15); color: #222; font-size: 13px; line-height: 1.5; min-width: 220px; max-width: 280px; white-space: normal; }
   .pf-tooltip::before { display: none; }
 
   /* Focus styles for keyboard navigation */
@@ -370,7 +370,7 @@ function applyFilters() {
 }
 
 function buildTooltip(venue, shows) {
-  let html = `<div class="popup-addr">${venue.address}<br><small style="color:#888;font-weight:400">Somerville, MA</small></div>`;
+  let html = `<div class="popup-content"><div class="popup-addr">${venue.address}<br><small style="color:#888;font-weight:400">Somerville, MA</small></div>`;
   shows.forEach(s => {
     html += `<div class="popup-show">
       <div class="popup-show-name">${s.name}</div>
@@ -378,6 +378,7 @@ function buildTooltip(venue, shows) {
       <div class="popup-show-meta">${s.genres.join(', ') || s.genre}</div>
     </div>`;
   });
+  html += '</div>';
   return html;
 }
 
