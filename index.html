@@ -74,19 +74,29 @@
   .preset-btn:focus-visible, .small-btn:focus-visible { border-radius: 14px; }
   .genre-chip:focus-within { outline: 3px solid #2c5f2e; outline-offset: 2px; border-radius: 14px; }
 
+  /* ── MOBILE ── */
+  @media (max-width: 768px) {
+    #header h1 { font-size: 15px; }
+    #header .sub { display: none; }
+    #main { flex-direction: column; }
+    #map { height: 40vh; min-height: 220px; flex: none; }
+    #list-panel { width: 100%; border-left: none; border-top: 1px solid #ddd; flex: 1; }
+  }
+
   /* ── PRINT STYLES ── */
   @media print {
     @page { margin: 0.5in; size: letter; }
     body { font-size: 10pt; background: white; }
-    #app { height: auto; }
+    #app { height: auto !important; display: block !important; }
     #header { background: white; color: black; border-bottom: 2pt solid black; padding: 8pt 0; }
     #header h1 { font-size: 16pt; }
     #filters, #result-bar, #print-btn, #list-panel .filter-actions { display: none !important; }
-    #main { display: block; overflow: visible; }
+    #main { display: block !important; overflow: visible !important; height: auto !important; }
     #map { height: 5in !important; page-break-after: avoid; border: 1pt solid #ccc; }
-    #list-panel { width: 100% !important; border: none; overflow: visible; }
-    #venue-list { column-count: 3 !important; column-gap: 16pt; orphans: 2; widows: 2; }
-    .venue-card { break-inside: avoid; border-bottom: 0.5pt solid #ccc; padding: 3pt 0; font-size: 9pt; }
+    #list-panel { width: 100% !important; border: none !important; overflow: visible !important; height: auto !important; max-height: none !important; }
+    #venue-list { display: block; }
+    #print-col-wrapper { display: flex !important; gap: 16pt; align-items: flex-start; width: 100%; }
+    .venue-card { border-bottom: 0.5pt solid #ccc; padding: 3pt 0; font-size: 9pt; }
     .venue-card:hover { background: none; }
     .venue-addr { font-size: 9pt; }
     .show-item { font-size: 8pt; }
@@ -427,6 +437,36 @@ function highlightCard(idx) {
 // Initial render
 updateTimeLabels();
 applyFilters();
+
+// ── Print column split ─────────────────────────────────────────────────────
+// Safari ignores CSS column-count in @media print, so we split the cards
+// into 3 real flex columns before the dialog opens and restore them after.
+window.addEventListener('beforeprint', () => {
+  const list = document.getElementById('venue-list');
+  const cards = [...list.querySelectorAll('.venue-card')];
+  if (cards.length === 0) return;
+
+  const third = Math.ceil(cards.length / 3);
+  const wrapper = document.createElement('div');
+  wrapper.id = 'print-col-wrapper';
+  wrapper.style.cssText = 'display:flex;gap:16pt;align-items:flex-start;width:100%';
+
+  for (let i = 0; i < 3; i++) {
+    const col = document.createElement('div');
+    col.style.cssText = 'flex:1;min-width:0';
+    cards.slice(i * third, (i + 1) * third).forEach(c => col.appendChild(c));
+    wrapper.appendChild(col);
+  }
+  list.appendChild(wrapper);
+});
+
+window.addEventListener('afterprint', () => {
+  const wrapper = document.getElementById('print-col-wrapper');
+  if (!wrapper) return;
+  const list = document.getElementById('venue-list');
+  [...wrapper.querySelectorAll('.venue-card')].forEach(c => list.appendChild(c));
+  wrapper.remove();
+});
 </script>
 </body>
 </html>
