@@ -358,6 +358,7 @@ function applyFilters() {
     marker.bindTooltip(buildTooltip(venue, matchingShows, num, color), {
       direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
     });
+    marker.on('popupopen', () => marker.closeTooltip());
     marker.on('click', () => highlightCard(idx));
     markerLayer.addLayer(marker);
     activeMarkers.push(marker);
