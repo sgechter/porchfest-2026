@@ -29,7 +29,22 @@
   .preset-btn { background: #f0f0f0; border: 1px solid #ccc; padding: 4px 10px; border-radius: 14px; cursor: pointer; font-size: 12px; white-space: nowrap; }
   .preset-btn.active { background: #2c5f2e; color: white; border-color: #2c5f2e; }
   #time-range-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; color: #333; }
-  #time-start, #time-end { width: 90px; accent-color: #2c5f2e; }
+  #time-start, #time-end {
+    width: 90px; -webkit-appearance: none; appearance: none;
+    height: 6px; border-radius: 3px; outline: none; cursor: pointer;
+  }
+  #time-start::-webkit-slider-thumb, #time-end::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #2c5f2e; cursor: pointer; margin-top: -5px;
+  }
+  #time-start::-moz-range-thumb, #time-end::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #2c5f2e; border: none; cursor: pointer;
+  }
+  #time-start::-webkit-slider-runnable-track, #time-end::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px;
+  }
   
   /* Genre filter */
   #genre-grid { display: flex; flex-wrap: wrap; gap: 4px; max-width: 600px; }
@@ -253,7 +268,21 @@ function setPreset(s, e) {
     if (presetMap[key] && b.textContent.includes(presetMap[key])) b.classList.add('active');
   });
   updateTimeLabels();
+  updateSliderFills();
   applyFilters();
+}
+
+function updateSliderFills() {
+  const min = 720, max = 1080;
+  const startPct = ((timeStart - min) / (max - min)) * 100;
+  const endPct   = ((timeEnd   - min) / (max - min)) * 100;
+  const grey = '#ddd', green = '#2c5f2e';
+  // Left slider: grey left of thumb, green right of thumb (→ range starts here)
+  document.getElementById('time-start').style.background =
+    `linear-gradient(to right, ${grey} ${startPct}%, ${green} ${startPct}%, ${green} 100%)`;
+  // Right slider: green left of thumb (← range ends here), grey right of thumb
+  document.getElementById('time-end').style.background =
+    `linear-gradient(to right, ${green} 0%, ${green} ${endPct}%, ${grey} ${endPct}%, ${grey} 100%)`;
 }
 
 function onSlider() {
@@ -265,6 +294,7 @@ function onSlider() {
   }
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   updateTimeLabels();
+  updateSliderFills();
   applyFilters();
 }
 
@@ -437,6 +467,7 @@ function highlightCard(idx) {
 
 // Initial render
 updateTimeLabels();
+updateSliderFills();
 applyFilters();
 
 // ── Print column split ─────────────────────────────────────────────────────

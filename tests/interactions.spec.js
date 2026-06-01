@@ -28,7 +28,7 @@ test('time-start slider has a gradient background (not just accent-color)', asyn
 });
 
 test('time-start slider gradient has grey on the left (before thumb)', async ({ page }) => {
-  // Move start to 25% of range (720 + 90 = 810 min = 1:30pm)
+  // Move start to 25% of range (810 min = 1:30pm)
   await page.evaluate(() => {
     const el = document.getElementById('time-start');
     el.value = 810;
@@ -36,12 +36,15 @@ test('time-start slider gradient has grey on the left (before thumb)', async ({ 
   });
   const bg = await page.evaluate(() => document.getElementById('time-start').style.background);
   expect(bg).toContain('linear-gradient');
-  // The gradient should start with grey (#ddd) before the thumb position
-  expect(bg.indexOf('#ddd')).toBeLessThan(bg.indexOf('#2c5f2e'));
+  // Browser normalizes hex → rgb. Grey (ddd) must appear before green in the gradient string.
+  const greyIdx  = bg.indexOf('221, 221, 221'); // rgb(221,221,221) = #ddd
+  const greenIdx = bg.indexOf('44, 95, 46');    // rgb(44,95,46)   = #2c5f2e
+  expect(greyIdx).toBeGreaterThan(-1);
+  expect(greyIdx).toBeLessThan(greenIdx);
 });
 
 test('time-end slider gradient has grey on the right (after thumb)', async ({ page }) => {
-  // Move end to 75% of range
+  // Move end to 75% of range (990 min = 4:30pm)
   await page.evaluate(() => {
     const el = document.getElementById('time-end');
     el.value = 990;
@@ -49,8 +52,11 @@ test('time-end slider gradient has grey on the right (after thumb)', async ({ pa
   });
   const bg = await page.evaluate(() => document.getElementById('time-end').style.background);
   expect(bg).toContain('linear-gradient');
-  // The gradient should end with grey (#ddd) after the thumb position
-  expect(bg.lastIndexOf('#ddd')).toBeGreaterThan(bg.indexOf('#2c5f2e'));
+  // Green (2c5f2e) must appear before grey (ddd) in the gradient string.
+  const greenIdx    = bg.indexOf('44, 95, 46');
+  const greyLastIdx = bg.lastIndexOf('221, 221, 221');
+  expect(greenIdx).toBeGreaterThan(-1);
+  expect(greyLastIdx).toBeGreaterThan(greenIdx);
 });
 
 // ── Print zoom preservation ───────────────────────────────────────────────
