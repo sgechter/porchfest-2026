@@ -5,26 +5,41 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => typeof map !== 'undefined' && activeMarkers.length > 0);
 });
 
-// ── Double popup / tooltip conflict ───────────────────────────────────────
+// ── Sticky tooltip on click ───────────────────────────────────────────────
 
-test('opening a popup unbinds the tooltip entirely', async ({ page }) => {
-  // closeTooltip() alone isn't enough on mobile — synthetic mouseover re-opens it.
-  // We need unbindTooltip() so there's nothing to re-open.
-  const tooltipBound = await page.evaluate(() => {
-    activeMarkers[0].openTooltip();
-    activeMarkers[0].openPopup();
-    return activeMarkers[0].getTooltip() !== null; // should be null after unbind
+test('clicking a marker pins its tooltip (permanent)', async ({ page }) => {
+  const isPermanent = await page.evaluate(() => {
+    activeMarkers[0].fire('click');
+    return activeMarkers[0].getTooltip().options.permanent === true;
   });
-  expect(tooltipBound).toBe(false);
+  expect(isPermanent).toBe(true);
 });
 
-test('closing a popup re-binds the tooltip', async ({ page }) => {
-  const tooltipReboundAfterClose = await page.evaluate(() => {
-    activeMarkers[0].openPopup();
-    activeMarkers[0].closePopup();
-    return activeMarkers[0].getTooltip() !== null;
+test('clicking the same marker twice toggles the sticky tooltip off', async ({ page }) => {
+  const isPermanentAfter = await page.evaluate(() => {
+    activeMarkers[0].fire('click');
+    activeMarkers[0].fire('click');
+    return activeMarkers[0].getTooltip().options.permanent === true;
   });
-  expect(tooltipReboundAfterClose).toBe(true);
+  expect(isPermanentAfter).toBe(false);
+});
+
+test('clicking a different marker moves the sticky tooltip', async ({ page }) => {
+  const result = await page.evaluate(() => {
+    activeMarkers[0].fire('click');
+    activeMarkers[1].fire('click');
+    return {
+      first:  activeMarkers[0].getTooltip().options.permanent === true,
+      second: activeMarkers[1].getTooltip().options.permanent === true,
+    };
+  });
+  expect(result.first).toBe(false);
+  expect(result.second).toBe(true);
+});
+
+test('no popups are bound — only tooltips', async ({ page }) => {
+  const hasPopup = await page.evaluate(() => activeMarkers[0].getPopup() != null);
+  expect(hasPopup).toBe(false);
 });
 
 // ── Slider fill direction ─────────────────────────────────────────────────

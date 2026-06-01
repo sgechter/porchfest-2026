@@ -84,14 +84,6 @@
   .pf-tooltip { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; box-shadow: 0 3px 12px rgba(0,0,0,0.15); color: #222; font-size: 13px; line-height: 1.5; min-width: 220px; max-width: 280px; white-space: normal; }
   .pf-tooltip::before { display: none; }
 
-  /* Click popup — styled to match the hover tooltip exactly */
-  .pf-popup .leaflet-popup-content-wrapper {
-    background: white; border: 1px solid #ddd; border-radius: 8px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.15); padding: 0; color: #222;
-  }
-  .pf-popup .leaflet-popup-content { margin: 8px 12px; font-size: 13px; line-height: 1.5; min-width: 220px; max-width: 280px; }
-  .pf-popup .leaflet-popup-tip-container { display: none; }
-  .pf-popup .leaflet-popup-close-button { color: #888; }
 
   /* Focus styles for keyboard navigation */
   :focus-visible { outline: 3px solid #2c5f2e; outline-offset: 2px; border-radius: 2px; }
@@ -370,7 +362,41 @@ function makeIcon(num, color) {
 // ── Apply filters ──
 let markerLayer = L.layerGroup().addTo(map);
 
+// ── Sticky tooltip on click ──
+// One marker can be "stuck" at a time. Hover still works on every marker,
+// but clicking pins that marker's tooltip until something else dismisses it.
+let stickyMarker = null;
+let stickyRestore = null;
+
+function unstickMarker() {
+  if (stickyRestore) stickyRestore();
+  stickyMarker = null;
+  stickyRestore = null;
+}
+
+function stickToMarker(marker, tooltipHtml) {
+  if (stickyMarker === marker) { unstickMarker(); return; }
+  unstickMarker();
+  marker.unbindTooltip();
+  marker.bindTooltip(tooltipHtml, {
+    direction: 'top', offset: [0, -38], opacity: 1,
+    className: 'pf-tooltip', permanent: true
+  });
+  marker.openTooltip();
+  stickyMarker = marker;
+  stickyRestore = () => {
+    marker.unbindTooltip();
+    marker.bindTooltip(tooltipHtml, {
+      direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
+    });
+  };
+}
+
+// Clicking empty map area un-sticks (marker clicks don't bubble to the map in Leaflet)
+map.on('click', unstickMarker);
+
 function applyFilters() {
+  unstickMarker();
   markerLayer.clearLayers();
   activeMarkers = [];
 
@@ -396,17 +422,14 @@ function applyFilters() {
 
     // Marker
     const marker = L.marker([venue.lat, venue.lng], { icon: makeIcon(num, color) });
-    const popupHtml = buildPopup(venue, matchingShows, num, color);
-    marker.bindPopup(popupHtml, { maxWidth: 280, className: 'pf-popup' });
-    marker.bindTooltip(buildTooltip(venue, matchingShows, num, color), {
+    const tooltipHtml = buildTooltip(venue, matchingShows, num, color);
+    marker.bindTooltip(tooltipHtml, {
       direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
     });
-    // Unbind tooltip while popup is open so mobile synthetic mouseover can't re-open it
-    marker.on('popupopen',  () => { marker.closeTooltip(); marker.unbindTooltip(); });
-    marker.on('popupclose', () => marker.bindTooltip(buildTooltip(venue, matchingShows, num, color), {
-      direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
-    }));
-    marker.on('click', () => highlightCard(idx));
+    marker.on('click', () => {
+      stickToMarker(marker, tooltipHtml);
+      highlightCard(idx);
+    });
     markerLayer.addLayer(marker);
     activeMarkers.push(marker);
 
@@ -416,7 +439,7 @@ function applyFilters() {
     card.id = `card-${idx}`;
     card.innerHTML = buildCard(venue, matchingShows, num, color);
     card.addEventListener('click', () => {
-      marker.openPopup();
+      stickToMarker(marker, tooltipHtml);
       map.panTo([venue.lat, venue.lng]);
       highlightCard(idx);
     });
@@ -431,19 +454,6 @@ function applyFilters() {
 }
 
 function buildTooltip(venue, shows, num, color) {
-  let html = `<div class="popup-content"><div class="popup-addr"><span class="venue-num" style="background:${color}">${num}</span>${venue.address}<br><small style="color:#888;font-weight:400;margin-left:26px;display:block">Somerville, MA</small></div>`;
-  shows.forEach(s => {
-    html += `<div class="popup-show">
-      <div class="popup-show-name">${s.name}</div>
-      <div class="popup-show-meta">${s.time}</div>
-      <div class="popup-show-meta">${s.genres.join(', ') || s.genre}</div>
-    </div>`;
-  });
-  html += '</div>';
-  return html;
-}
-
-function buildPopup(venue, shows, num, color) {
   let html = `<div class="popup-content"><div class="popup-addr"><span class="venue-num" style="background:${color}">${num}</span>${venue.address}<br><small style="color:#888;font-weight:400;margin-left:26px;display:block">Somerville, MA</small></div>`;
   shows.forEach(s => {
     html += `<div class="popup-show">
