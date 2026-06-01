@@ -84,6 +84,15 @@
   .pf-tooltip { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; box-shadow: 0 3px 12px rgba(0,0,0,0.15); color: #222; font-size: 13px; line-height: 1.5; min-width: 220px; max-width: 280px; white-space: normal; }
   .pf-tooltip::before { display: none; }
 
+  /* Click popup — styled to match the hover tooltip exactly */
+  .pf-popup .leaflet-popup-content-wrapper {
+    background: white; border: 1px solid #ddd; border-radius: 8px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.15); padding: 0; color: #222;
+  }
+  .pf-popup .leaflet-popup-content { margin: 8px 12px; font-size: 13px; line-height: 1.5; min-width: 220px; max-width: 280px; }
+  .pf-popup .leaflet-popup-tip-container { display: none; }
+  .pf-popup .leaflet-popup-close-button { color: #888; }
+
   /* Focus styles for keyboard navigation */
   :focus-visible { outline: 3px solid #2c5f2e; outline-offset: 2px; border-radius: 2px; }
   .preset-btn:focus-visible, .small-btn:focus-visible { border-radius: 14px; }
@@ -388,7 +397,7 @@ function applyFilters() {
     // Marker
     const marker = L.marker([venue.lat, venue.lng], { icon: makeIcon(num, color) });
     const popupHtml = buildPopup(venue, matchingShows, num, color);
-    marker.bindPopup(popupHtml, { maxWidth: 280 });
+    marker.bindPopup(popupHtml, { maxWidth: 280, className: 'pf-popup' });
     marker.bindTooltip(buildTooltip(venue, matchingShows, num, color), {
       direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
     });
@@ -484,20 +493,21 @@ applyFilters();
 // 2. Split venue cards into 3 real flex columns (Safari ignores CSS column-count
 //    in @media print).
 const PRINT_MAP_H = 480; // px — matches the @media print #map height (5in ≈ 480px)
-let _printCenter, _printZoom;
+let _screenBounds;
 
 // Safety net: re-invalidate after @media print CSS finishes applying (handles width change)
 window.matchMedia('print').addEventListener('change', e => {
-  if (e.matches && _printCenter) {
+  if (e.matches && _screenBounds) {
     map.invalidateSize({ animate: false });
-    map.setView(_printCenter, _printZoom, { animate: false });
+    map.fitBounds(_screenBounds, { animate: false });
   }
 });
 
 window.addEventListener('beforeprint', () => {
-  // Capture current view
-  _printCenter = map.getCenter();
-  _printZoom   = map.getZoom();
+  // Capture the lat/lng rectangle currently visible on screen.
+  // We preserve the *bounds*, not center+zoom, because the print map has different
+  // dimensions than the screen — same zoom would show a different area.
+  _screenBounds = map.getBounds();
 
   // Force #main to block layout NOW so invalidateSize reads the final print width
   // (otherwise @media print changes the width after we've already sized the map)
@@ -507,7 +517,7 @@ window.addEventListener('beforeprint', () => {
   const mapEl = document.getElementById('map');
   mapEl.style.height = PRINT_MAP_H + 'px';
   map.invalidateSize({ animate: false });
-  map.setView(_printCenter, _printZoom, { animate: false });
+  map.fitBounds(_screenBounds, { animate: false });
 
   // Column split
   const list  = document.getElementById('venue-list');
@@ -534,7 +544,7 @@ window.addEventListener('afterprint', () => {
   mapEl.style.height = '';
   document.getElementById('main').style.display = '';
   map.invalidateSize({ animate: false });
-  if (_printCenter) map.setView(_printCenter, _printZoom, { animate: false });
+  if (_screenBounds) map.fitBounds(_screenBounds, { animate: false });
 
   // Restore flat venue list
   const wrapper = document.getElementById('print-col-wrapper');
