@@ -72,3 +72,49 @@ test('afterprint restores venue-list to single flat container (no column wrapper
   });
   expect(columnCount).toBe(true);
 });
+
+// ── Print area matches screen area (REAL print emulation) ─────────────────
+// This test catches the bug where the printed map shows a different
+// geographic area than what was on screen. It uses Playwright's true print
+// media emulation + a viewport sized to the print page (letter @ 0.5in
+// margins = 7.5in × 10in = 720 × 960 CSS px) so the layout actually
+// reflects the printed page, not the screen window.
+
+test('print map shows the same markers that were visible on screen', async ({ page }) => {
+  // 1. View the page at a normal screen size, pick a clear filter to limit markers
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await page.waitForFunction(() => typeof map !== 'undefined' && activeMarkers.length > 0);
+
+  // Use a single-genre filter so there are a handful of markers to track precisely
+  await page.evaluate(() => {
+    // Select Bluegrass only
+    document.querySelectorAll('.genre-chip input').forEach(c => { c.checked = c.parentElement.textContent.trim() === 'Bluegrass'; });
+    selectedGenres = new Set(['Bluegrass']);
+    applyFilters();
+  });
+
+  // Capture the lat/lng of every visible marker BEFORE printing
+  const visibleBefore = await page.evaluate(() => {
+    const b = map.getBounds();
+    return activeMarkers
+      .filter(m => b.contains(m.getLatLng()))
+      .map(m => { const ll = m.getLatLng(); return [ll.lat, ll.lng]; });
+  });
+
+  // 2. Switch to print media + print page viewport, then trigger print
+  await page.emulateMedia({ media: 'print' });
+  await page.setViewportSize({ width: 720, height: 960 });
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  await page.waitForTimeout(300);
+
+  // 3. After print prep: every marker that was visible on screen must still be
+  //    inside the printed map's bounds.
+  const stillVisible = await page.evaluate((pts) => {
+    const b = map.getBounds();
+    return pts.filter(([lat, lng]) => b.contains([lat, lng])).length;
+  }, visibleBefore);
+
+  expect(visibleBefore.length).toBeGreaterThan(0);
+  expect(stillVisible).toBe(visibleBefore.length);
+});

@@ -502,10 +502,14 @@ applyFilters();
 //    *before* @media print CSS kicks in, so Leaflet re-renders the correct tiles.
 // 2. Split venue cards into 3 real flex columns (Safari ignores CSS column-count
 //    in @media print).
-const PRINT_MAP_H = 480; // px — matches the @media print #map height (5in ≈ 480px)
+// Print page dimensions in CSS pixels: letter (8.5in × 11in) minus 0.5in margins
+// = 7.5in × 10in. At 96 CSS px/in that's 720 × 960 px usable area. The map
+// occupies 5in × 7.5in = 480 × 720 px of that.
+const PRINT_MAP_W = 720;
+const PRINT_MAP_H = 480;
 let _screenBounds;
 
-// Safety net: re-invalidate after @media print CSS finishes applying (handles width change)
+// Safety net: re-invalidate after @media print CSS finishes applying
 window.matchMedia('print').addEventListener('change', e => {
   if (e.matches && _screenBounds) {
     map.invalidateSize({ animate: false });
@@ -514,17 +518,21 @@ window.matchMedia('print').addEventListener('change', e => {
 });
 
 window.addEventListener('beforeprint', () => {
-  // Capture the lat/lng rectangle currently visible on screen.
-  // We preserve the *bounds*, not center+zoom, because the print map has different
+  // Capture the lat/lng rectangle currently visible on screen. We preserve
+  // the *bounds*, not center+zoom, because the print map has different
   // dimensions than the screen — same zoom would show a different area.
   _screenBounds = map.getBounds();
 
-  // Force #main to block layout NOW so invalidateSize reads the final print width
-  // (otherwise @media print changes the width after we've already sized the map)
+  // Force #main to block layout so #map is no longer in a flex row
   document.getElementById('main').style.display = 'block';
 
-  // Resize map height to match print CSS value
+  // Force the map element to the exact print page dimensions. We can't rely
+  // on @media print CSS being active yet (it activates *after* beforeprint
+  // returns), and Leaflet's invalidateSize() reads the live container
+  // dimensions — without this, Leaflet sees the screen width and fitBounds
+  // computes a zoom for the wrong aspect ratio.
   const mapEl = document.getElementById('map');
+  mapEl.style.width  = PRINT_MAP_W + 'px';
   mapEl.style.height = PRINT_MAP_H + 'px';
   map.invalidateSize({ animate: false });
   map.fitBounds(_screenBounds, { animate: false });
@@ -551,6 +559,7 @@ window.addEventListener('beforeprint', () => {
 window.addEventListener('afterprint', () => {
   // Restore map to screen layout
   const mapEl = document.getElementById('map');
+  mapEl.style.width  = '';
   mapEl.style.height = '';
   document.getElementById('main').style.display = '';
   map.invalidateSize({ animate: false });
