@@ -81,20 +81,24 @@ test('afterprint restores venue-list to single flat container (no column wrapper
 // reflects the printed page, not the screen window.
 
 test('print map shows the same markers that were visible on screen', async ({ page }) => {
-  // 1. View the page at a normal screen size, pick a clear filter to limit markers
+  // Mirror the actual print sequence:
+  //   1. User views at screen size
+  //   2. beforeprint fires (page still at screen viewport)
+  //   3. @media print + print-page viewport activates
+  //   4. matchMedia('print') change listener re-fits bounds
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   await page.waitForFunction(() => typeof map !== 'undefined' && activeMarkers.length > 0);
 
-  // Use a single-genre filter so there are a handful of markers to track precisely
+  // Single-genre filter + explicit view so the test is deterministic
   await page.evaluate(() => {
-    // Select Bluegrass only
     document.querySelectorAll('.genre-chip input').forEach(c => { c.checked = c.parentElement.textContent.trim() === 'Bluegrass'; });
     selectedGenres = new Set(['Bluegrass']);
     applyFilters();
+    map.setView([42.3876, -71.0995], 14);
   });
+  await page.waitForTimeout(200);
 
-  // Capture the lat/lng of every visible marker BEFORE printing
   const visibleBefore = await page.evaluate(() => {
     const b = map.getBounds();
     return activeMarkers
@@ -102,14 +106,13 @@ test('print map shows the same markers that were visible on screen', async ({ pa
       .map(m => { const ll = m.getLatLng(); return [ll.lat, ll.lng]; });
   });
 
-  // 2. Switch to print media + print page viewport, then trigger print
+  // Production sequence: beforeprint first (still at screen viewport),
+  // then media + viewport change, then matchMedia listener re-fits.
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
   await page.emulateMedia({ media: 'print' });
   await page.setViewportSize({ width: 720, height: 960 });
-  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
 
-  // 3. After print prep: every marker that was visible on screen must still be
-  //    inside the printed map's bounds.
   const stillVisible = await page.evaluate((pts) => {
     const b = map.getBounds();
     return pts.filter(([lat, lng]) => b.contains([lat, lng])).length;

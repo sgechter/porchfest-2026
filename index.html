@@ -216,6 +216,9 @@ const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voy
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
   subdomains: 'abcd',
   maxZoom: 19,
+  // Safari's print pipeline often drops cross-origin <img> tiles unless they
+  // were loaded with explicit CORS. CartoCDN serves the right headers.
+  crossOrigin: 'anonymous',
 }).addTo(map);
 
 function minsToLabel(m) {
