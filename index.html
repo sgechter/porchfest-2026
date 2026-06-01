@@ -93,9 +93,13 @@
   @media (max-width: 768px) {
     #header h1 { font-size: 15px; }
     #header .sub { display: none; }
-    #main { flex-direction: column; }
-    #map { height: 40vh; min-height: 220px; flex: none; }
-    #list-panel { width: 100%; border-left: none; border-top: 1px solid #ddd; flex: 1; }
+    /* Let the page scroll naturally — remove the fixed 100vh cage */
+    #app { height: auto; min-height: 100dvh; }
+    #main { flex-direction: column; overflow: visible; height: auto; }
+    #map { height: 45vh; min-height: 220px; flex: none; }
+    /* List panel expands to full content height and the browser handles scrolling */
+    #list-panel { width: 100%; border-left: none; border-top: 1px solid #ddd;
+                  height: auto; overflow-y: visible; flex: none; min-height: 300px; }
   }
 
   /* ── PRINT STYLES ── */

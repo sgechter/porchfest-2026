@@ -73,3 +73,13 @@ test('genre filter works on mobile', async ({ page }) => {
   const count = await page.evaluate(() => activeMarkers.length);
   expect(count).toBe(0);
 });
+
+// ── Scrollability ───────────────────────────────────────────────────────────
+
+test('venue list is tall enough to show at least 3 cards on mobile', async ({ page }) => {
+  const { listHeight, cardHeight } = await page.evaluate(() => ({
+    listHeight: document.getElementById('list-panel').offsetHeight,
+    cardHeight: document.querySelector('.venue-card')?.offsetHeight ?? 0,
+  }));
+  expect(listHeight).toBeGreaterThanOrEqual(cardHeight * 3);
+});
