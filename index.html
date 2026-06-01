@@ -111,7 +111,7 @@
     #header h1 { font-size: 16pt; }
     #filters, #result-bar, #print-btn, #list-panel .filter-actions { display: none !important; }
     #main { display: block !important; overflow: visible !important; height: auto !important; }
-    #map { height: 5in !important; page-break-after: avoid; border: 1pt solid #ccc; }
+    #map { height: 480px; page-break-after: avoid; border: 1pt solid #ccc; }
     #list-panel { width: 100% !important; border: none !important; overflow: visible !important; height: auto !important; max-height: none !important; }
     #venue-list { display: block; }
     #print-col-wrapper { display: flex !important; gap: 16pt; align-items: flex-start; width: 100%; }
@@ -474,15 +474,31 @@ updateTimeLabels();
 updateSliderFills();
 applyFilters();
 
-// ── Print column split ─────────────────────────────────────────────────────
-// Safari ignores CSS column-count in @media print, so we split the cards
-// into 3 real flex columns before the dialog opens and restore them after.
+// ── Print: preserve screen view + 3-column venue list ─────────────────────
+// 1. Capture map center/zoom and resize the map container to the print height
+//    *before* @media print CSS kicks in, so Leaflet re-renders the correct tiles.
+// 2. Split venue cards into 3 real flex columns (Safari ignores CSS column-count
+//    in @media print).
+const PRINT_MAP_H = 480; // px — matches the @media print #map height (5in ≈ 480px)
+let _printCenter, _printZoom;
+
 window.addEventListener('beforeprint', () => {
-  const list = document.getElementById('venue-list');
+  // Capture current view
+  _printCenter = map.getCenter();
+  _printZoom   = map.getZoom();
+
+  // Proactively resize map so Leaflet re-renders at print dimensions
+  const mapEl = document.getElementById('map');
+  mapEl.style.height = PRINT_MAP_H + 'px';
+  map.invalidateSize({ animate: false });
+  map.setView(_printCenter, _printZoom, { animate: false });
+
+  // Column split
+  const list  = document.getElementById('venue-list');
   const cards = [...list.querySelectorAll('.venue-card')];
   if (cards.length === 0) return;
 
-  const third = Math.ceil(cards.length / 3);
+  const third   = Math.ceil(cards.length / 3);
   const wrapper = document.createElement('div');
   wrapper.id = 'print-col-wrapper';
   wrapper.style.cssText = 'display:flex;gap:16pt;align-items:flex-start;width:100%';
@@ -497,6 +513,13 @@ window.addEventListener('beforeprint', () => {
 });
 
 window.addEventListener('afterprint', () => {
+  // Restore map to screen layout
+  const mapEl = document.getElementById('map');
+  mapEl.style.height = '';
+  map.invalidateSize({ animate: false });
+  if (_printCenter) map.setView(_printCenter, _printZoom, { animate: false });
+
+  // Restore flat venue list
   const wrapper = document.getElementById('print-col-wrapper');
   if (!wrapper) return;
   const list = document.getElementById('venue-list');
