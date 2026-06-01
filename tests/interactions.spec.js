@@ -7,15 +7,24 @@ test.beforeEach(async ({ page }) => {
 
 // ── Double popup / tooltip conflict ───────────────────────────────────────
 
-test('opening a popup closes the tooltip', async ({ page }) => {
-  const tooltipOpenAfterClick = await page.evaluate(() => {
-    // Simulate hover then click: force tooltip open first, then open popup
+test('opening a popup unbinds the tooltip entirely', async ({ page }) => {
+  // closeTooltip() alone isn't enough on mobile — synthetic mouseover re-opens it.
+  // We need unbindTooltip() so there's nothing to re-open.
+  const tooltipBound = await page.evaluate(() => {
     activeMarkers[0].openTooltip();
     activeMarkers[0].openPopup();
-    const tooltip = activeMarkers[0].getTooltip();
-    return tooltip ? tooltip.isOpen() : false;
+    return activeMarkers[0].getTooltip() !== null; // should be null after unbind
   });
-  expect(tooltipOpenAfterClick).toBe(false);
+  expect(tooltipBound).toBe(false);
+});
+
+test('closing a popup re-binds the tooltip', async ({ page }) => {
+  const tooltipReboundAfterClose = await page.evaluate(() => {
+    activeMarkers[0].openPopup();
+    activeMarkers[0].closePopup();
+    return activeMarkers[0].getTooltip() !== null;
+  });
+  expect(tooltipReboundAfterClose).toBe(true);
 });
 
 // ── Slider fill direction ─────────────────────────────────────────────────
@@ -61,11 +70,8 @@ test('time-end slider gradient has grey on the right (after thumb)', async ({ pa
 
 // ── Print zoom preservation ───────────────────────────────────────────────
 
-test('beforeprint resizes map to print height and preserves center/zoom', async ({ page }) => {
-  // Set a known view
-  await page.evaluate(() => {
-    map.setView([42.395, -71.108], 15, { animate: false });
-  });
+test('beforeprint resizes map to print dimensions and preserves center/zoom', async ({ page }) => {
+  await page.evaluate(() => map.setView([42.395, -71.108], 15, { animate: false }));
   await page.waitForTimeout(150);
 
   const before = await page.evaluate(() => ({
@@ -82,12 +88,14 @@ test('beforeprint resizes map to print height and preserves center/zoom', async 
     lng:      map.getCenter().lng,
     zoom:     map.getZoom(),
     mapH:     document.getElementById('map').style.height,
+    // #main must be forced to block so invalidateSize reads final print width
+    mainDisplay: document.getElementById('main').style.display,
   }));
 
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
 
-  // Map container should be proactively resized so print tiles load correctly
   expect(after.mapH).toBe('480px');
+  expect(after.mainDisplay).toBe('block');
   expect(after.zoom).toBeCloseTo(before.zoom, 0);
   expect(after.lat).toBeCloseTo(before.lat, 3);
   expect(after.lng).toBeCloseTo(before.lng, 3);

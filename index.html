@@ -392,7 +392,11 @@ function applyFilters() {
     marker.bindTooltip(buildTooltip(venue, matchingShows, num, color), {
       direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
     });
-    marker.on('popupopen', () => marker.closeTooltip());
+    // Unbind tooltip while popup is open so mobile synthetic mouseover can't re-open it
+    marker.on('popupopen',  () => { marker.closeTooltip(); marker.unbindTooltip(); });
+    marker.on('popupclose', () => marker.bindTooltip(buildTooltip(venue, matchingShows, num, color), {
+      direction: 'top', offset: [0, -38], opacity: 1, className: 'pf-tooltip'
+    }));
     marker.on('click', () => highlightCard(idx));
     markerLayer.addLayer(marker);
     activeMarkers.push(marker);
@@ -482,12 +486,24 @@ applyFilters();
 const PRINT_MAP_H = 480; // px — matches the @media print #map height (5in ≈ 480px)
 let _printCenter, _printZoom;
 
+// Safety net: re-invalidate after @media print CSS finishes applying (handles width change)
+window.matchMedia('print').addEventListener('change', e => {
+  if (e.matches && _printCenter) {
+    map.invalidateSize({ animate: false });
+    map.setView(_printCenter, _printZoom, { animate: false });
+  }
+});
+
 window.addEventListener('beforeprint', () => {
   // Capture current view
   _printCenter = map.getCenter();
   _printZoom   = map.getZoom();
 
-  // Proactively resize map so Leaflet re-renders at print dimensions
+  // Force #main to block layout NOW so invalidateSize reads the final print width
+  // (otherwise @media print changes the width after we've already sized the map)
+  document.getElementById('main').style.display = 'block';
+
+  // Resize map height to match print CSS value
   const mapEl = document.getElementById('map');
   mapEl.style.height = PRINT_MAP_H + 'px';
   map.invalidateSize({ animate: false });
@@ -516,6 +532,7 @@ window.addEventListener('afterprint', () => {
   // Restore map to screen layout
   const mapEl = document.getElementById('map');
   mapEl.style.height = '';
+  document.getElementById('main').style.display = '';
   map.invalidateSize({ animate: false });
   if (_printCenter) map.setView(_printCenter, _printZoom, { animate: false });
 
