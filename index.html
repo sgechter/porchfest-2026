@@ -133,7 +133,7 @@
       <div class="sub">Saturday, May 9 &nbsp;·&nbsp; Filter → Print → Walk!</div>
     </div>
     <div class="spacer"></div>
-    <button id="print-btn" onclick="window.print()">🖨 Print Map</button>
+    <button id="print-btn">🖨 Print Map</button>
   </div>
 
   <div id="filters">
@@ -212,7 +212,7 @@ map.getContainer().addEventListener('wheel', (e) => {
   }
 }, { passive: false });
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
   subdomains: 'abcd',
   maxZoom: 19,
@@ -508,6 +508,7 @@ applyFilters();
 const PRINT_MAP_W = 720;
 const PRINT_MAP_H = 480;
 let _screenBounds;
+let _printPrepared = false;
 
 // Safety net: re-invalidate after @media print CSS finishes applying
 window.matchMedia('print').addEventListener('change', e => {
@@ -517,27 +518,22 @@ window.matchMedia('print').addEventListener('change', e => {
   }
 });
 
-window.addEventListener('beforeprint', () => {
-  // Capture the lat/lng rectangle currently visible on screen. We preserve
-  // the *bounds*, not center+zoom, because the print map has different
-  // dimensions than the screen — same zoom would show a different area.
-  _screenBounds = map.getBounds();
+// Synchronous print prep — resize map to print dimensions, split venue list
+// into 3 columns. Idempotent: if already prepared (button path), bail out so
+// we don't re-run on the subsequent beforeprint event.
+function prepareForPrint() {
+  if (_printPrepared) return;
+  _printPrepared = true;
 
-  // Force #main to block layout so #map is no longer in a flex row
+  _screenBounds = map.getBounds();
   document.getElementById('main').style.display = 'block';
 
-  // Force the map element to the exact print page dimensions. We can't rely
-  // on @media print CSS being active yet (it activates *after* beforeprint
-  // returns), and Leaflet's invalidateSize() reads the live container
-  // dimensions — without this, Leaflet sees the screen width and fitBounds
-  // computes a zoom for the wrong aspect ratio.
   const mapEl = document.getElementById('map');
   mapEl.style.width  = PRINT_MAP_W + 'px';
   mapEl.style.height = PRINT_MAP_H + 'px';
   map.invalidateSize({ animate: false });
   map.fitBounds(_screenBounds, { animate: false });
 
-  // Column split
   const list  = document.getElementById('venue-list');
   const cards = [...list.querySelectorAll('.venue-card')];
   if (cards.length === 0) return;
@@ -554,9 +550,44 @@ window.addEventListener('beforeprint', () => {
     wrapper.appendChild(col);
   }
   list.appendChild(wrapper);
-});
+}
+
+// Wait for the basemap tiles to finish downloading for the current view.
+// Without this, the print dialog can snapshot the page mid-load and the map
+// renders mostly blank (page background showing through where tiles haven't
+// arrived yet).
+function waitForTilesLoaded(timeoutMs = 4000) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => { if (done) return; done = true; tileLayer.off('load', finish); resolve(); };
+    // Leaflet fires 'load' on the tile layer when all currently-needed tiles
+    // are loaded. If nothing is pending, the event won't fire — guard with
+    // a short timeout so we never hang.
+    tileLayer.on('load', finish);
+    setTimeout(finish, timeoutMs);
+    // If no tiles are pending at all, resolve next tick.
+    setTimeout(() => { if (!tileLayer._loading) finish(); }, 50);
+  });
+}
+
+// Print button: prepare layout, wait for tiles, then open the print dialog.
+// By the time `window.print()` fires `beforeprint`, tiles are already in the
+// browser cache, so the print render has the basemap.
+document.getElementById('print-btn').onclick = async () => {
+  prepareForPrint();
+  await waitForTilesLoaded();
+  window.print();
+};
+
+// Fallback for users who hit Cmd+P / browser menu Print (bypassing the
+// button): do the synchronous prep so at least the layout is right.
+// Tiles may be partially missing in this path — the button is the
+// supported entry point.
+window.addEventListener('beforeprint', prepareForPrint);
 
 window.addEventListener('afterprint', () => {
+  _printPrepared = false;
+
   // Restore map to screen layout
   const mapEl = document.getElementById('map');
   mapEl.style.width  = '';
