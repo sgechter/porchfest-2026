@@ -122,7 +122,23 @@
     .show-item { font-size: 8pt; }
     .venue-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     h2#print-list-heading { margin: 8pt 0 4pt; font-size: 12pt; border-top: 1pt solid black; padding-top: 6pt; }
+
+    /* Tile rendering for print: live tiles use GPU transforms that some
+       print pipelines drop. We pre-render the visible tiles to a single
+       canvas-derived <img> (#_print-map-snapshot) and show that instead. */
+    .leaflet-tile-pane { display: none !important; }
+    #_print-map-snapshot {
+      display: block !important;
+      position: absolute; top: 0; left: 0;
+      width: 100% !important; height: 100% !important;
+      z-index: 1 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
   }
+
+  /* On screen, hide the print snapshot (only used during print rendering) */
+  #_print-map-snapshot { display: none; }
 </style>
 </head>
 <body>
@@ -556,29 +572,72 @@ function prepareForPrint() {
 }
 
 // Wait for the basemap tiles to finish downloading for the current view.
-// Without this, the print dialog can snapshot the page mid-load and the map
-// renders mostly blank (page background showing through where tiles haven't
-// arrived yet).
 function waitForTilesLoaded(timeoutMs = 4000) {
   return new Promise(resolve => {
     let done = false;
     const finish = () => { if (done) return; done = true; tileLayer.off('load', finish); resolve(); };
-    // Leaflet fires 'load' on the tile layer when all currently-needed tiles
-    // are loaded. If nothing is pending, the event won't fire — guard with
-    // a short timeout so we never hang.
     tileLayer.on('load', finish);
     setTimeout(finish, timeoutMs);
-    // If no tiles are pending at all, resolve next tick.
     setTimeout(() => { if (!tileLayer._loading) finish(); }, 50);
   });
 }
 
-// Print button: prepare layout, wait for tiles, then open the print dialog.
-// By the time `window.print()` fires `beforeprint`, tiles are already in the
-// browser cache, so the print render has the basemap.
+// Compose the currently-visible tiles into a single canvas, return an <img>
+// element whose src is the canvas data URL. Browsers' print pipelines
+// reliably include plain <img> elements with data: sources, even when the
+// live (transform-positioned, cross-origin) tile <img>s don't paint.
+function composePrintSnapshot() {
+  const mapEl = document.getElementById('map');
+  const mapRect = mapEl.getBoundingClientRect();
+  const w = mapEl.offsetWidth;
+  const h = mapEl.offsetHeight;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  // Light grey fill — shows through any gaps between tiles
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw every loaded tile at its current on-screen position relative to the
+  // map container. Tiles outside the map area are clipped naturally by the
+  // canvas bounds.
+  const tiles = mapEl.querySelectorAll('.leaflet-tile-loaded');
+  tiles.forEach(tile => {
+    if (!tile.complete || tile.naturalWidth === 0) return;
+    const r = tile.getBoundingClientRect();
+    try {
+      ctx.drawImage(tile, r.left - mapRect.left, r.top - mapRect.top, r.width, r.height);
+    } catch (_) { /* CORS-tainted or detached tile — skip */ }
+  });
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.id = '_print-map-snapshot';
+    img.onload  = () => resolve(img);
+    img.onerror = reject;
+    img.src = canvas.toDataURL('image/png');
+  });
+}
+
+async function insertPrintSnapshot() {
+  // Remove any stale snapshot from a prior print
+  const old = document.getElementById('_print-map-snapshot');
+  if (old) old.remove();
+
+  const img = await composePrintSnapshot();
+  // Insert as a child of #map. CSS in @media print positions it absolutely
+  // and shows it; on screen it's display:none (so live tiles remain visible).
+  document.getElementById('map').appendChild(img);
+}
+
+// Print button: layout prep → wait for tiles → compose snapshot → print.
 document.getElementById('print-btn').onclick = async () => {
   prepareForPrint();
   await waitForTilesLoaded();
+  await insertPrintSnapshot();
   window.print();
 };
 
@@ -590,6 +649,10 @@ window.addEventListener('beforeprint', prepareForPrint);
 
 window.addEventListener('afterprint', () => {
   _printPrepared = false;
+
+  // Remove the print snapshot image (if any)
+  const snap = document.getElementById('_print-map-snapshot');
+  if (snap) snap.remove();
 
   // Restore map to screen layout
   const mapEl = document.getElementById('map');
